@@ -1,13 +1,13 @@
 import streamlit as st
 st.set_page_config(page_title="YMCA LEAN App", layout="centered")
-import mysql.connector
+import pymysql
 from datetime import date
 
 # ==============================
 # DB CONNECTION
 # ==============================
 def get_connection():
-    return mysql.connector.connect(
+    return pymysql.connect(
         host="localhost", # change later
         user="root",
         password="ymca",
