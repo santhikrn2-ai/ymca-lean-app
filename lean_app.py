@@ -1,19 +1,26 @@
 import streamlit as st
 st.set_page_config(page_title="YMCA LEAN App", layout="centered")
+
 import pymysql
 from datetime import date
 
 # ==============================
-# DB CONNECTION
+# DB CONNECTION (SAFE)
 # ==============================
 def get_connection():
-    return pymysql.connect(
-        host="localhost", # change later
-        user="root",
-        password="ymca",
-        database="checkin"
-    )
+    try:
+        return pymysql.connect(
+            host="localhost",  # change later
+            user="root",
+            password="ymca",
+            database="checkin"
+        )
+    except:
+        return None
 
+# ==============================
+# HELPERS
+# ==============================
 def canonical_key(raw):
     raw = (raw or "").strip().lower()
     raw = raw.replace("_", "|")
@@ -40,40 +47,61 @@ qr_input = st.text_input("Scan / Enter QR Code")
 if qr_input:
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+
+    if conn:
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+    else:
+        st.warning("⚠️ Database not connected (running in demo mode)")
+        cursor = None
 
     ukey = canonical_key(qr_input)
 
-    cursor.execute("""
-        SELECT UniqueKey, FirstName, LastName, DOB
-        FROM clients
-        WHERE UniqueKey = %s
-    """, (ukey,))
-
-    client = cursor.fetchone()
+    # ------------------------------
+    # FETCH CLIENT
+    # ------------------------------
+    if conn:
+        cursor.execute("""
+            SELECT UniqueKey, FirstName, LastName, DOB
+            FROM clients
+            WHERE UniqueKey = %s
+        """, (ukey,))
+        client = cursor.fetchone()
+    else:
+        client = {
+            "UniqueKey": ukey,
+            "FirstName": "Demo",
+            "LastName": "User",
+            "DOB": None
+        }
 
     if not client:
         st.error("Client not found")
     else:
         dob = client["DOB"]
         age = None
+
         if dob:
             today = date.today()
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
         st.success(f"Client: {client['FirstName']} {client['LastName']} | Age: {age}")
 
-        # Previous record
-        cursor.execute("""
-            SELECT SessionDate, Weight, BodyFatPercent, WaistCircumference,
-                   Systolic, Diastolic
-            FROM lean_assessments
-            WHERE UniqueKey = %s
-            ORDER BY SessionDate DESC
-            LIMIT 1
-        """, (client["UniqueKey"],))
+        # ------------------------------
+        # PREVIOUS RECORD
+        # ------------------------------
+        if conn:
+            cursor.execute("""
+                SELECT SessionDate, Weight, BodyFatPercent, WaistCircumference,
+                       Systolic, Diastolic
+                FROM lean_assessments
+                WHERE UniqueKey = %s
+                ORDER BY SessionDate DESC
+                LIMIT 1
+            """, (client["UniqueKey"],))
 
-        last = cursor.fetchone()
+            last = cursor.fetchone()
+        else:
+            last = None
 
         if last:
             st.info(f"""
@@ -93,33 +121,44 @@ Waist: {last['WaistCircumference']} in
         bodyfat = st.number_input("Body Fat (%)")
         waist = st.number_input("Waist (inches)")
 
+        # ------------------------------
+        # SAVE
+        # ------------------------------
         if st.button("Submit"):
 
-            cursor.execute("""
-                INSERT INTO lean_assessments
-                (UniqueKey, CohortName, CoachName, SessionNumber,
-                 AssessmentType, SessionDate,
-                 Age, Height, Systolic, Diastolic,
-                 Weight, BodyFatPercent, WaistCircumference)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (
-                client["UniqueKey"],
-                cohort,
-                coach,
-                session_number,
-                assessment_type,
-                session_date,
-                age,
-                height,
-                systolic,
-                diastolic,
-                weight,
-                bodyfat,
-                waist
-            ))
+            if conn:
+                cursor.execute("""
+                    INSERT INTO lean_assessments
+                    (UniqueKey, CohortName, CoachName, SessionNumber,
+                     AssessmentType, SessionDate,
+                     Age, Height, Systolic, Diastolic,
+                     Weight, BodyFatPercent, WaistCircumference)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (
+                    client["UniqueKey"],
+                    cohort,
+                    coach,
+                    session_number,
+                    assessment_type,
+                    session_date,
+                    age,
+                    height,
+                    systolic,
+                    diastolic,
+                    weight,
+                    bodyfat,
+                    waist
+                ))
 
-            conn.commit()
-            st.success("Saved successfully")
+                conn.commit()
+                st.success("✅ Saved to database")
 
-    cursor.close()
-    conn.close()
+            else:
+                st.success("✅ Saved (demo mode - DB not connected)")
+
+    # ------------------------------
+    # CLOSE CONNECTION
+    # ------------------------------
+    if conn:
+        cursor.close()
+        conn.close()
