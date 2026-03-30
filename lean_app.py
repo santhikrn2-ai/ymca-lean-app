@@ -33,6 +33,7 @@ st.title("YMCA LEAN Program")
 # ------------------------------
 st.sidebar.header("Session Setup")
 
+location = st.sidebar.text_input("Location")
 cohort = st.sidebar.text_input("Cohort Name")
 coach = st.sidebar.text_input("Coach Name")
 session_number = st.sidebar.number_input("Session Number", step=1)
@@ -121,6 +122,9 @@ Waist: {last['WaistCircumference']} in
         bodyfat = st.number_input("Body Fat (%)")
         waist = st.number_input("Waist (inches)")
 
+        # ✅ NEW OPTIONAL FIELD
+        notes = st.text_input("Notes (optional)")
+
         # ------------------------------
         # SAVE
         # ------------------------------
@@ -132,8 +136,9 @@ Waist: {last['WaistCircumference']} in
                     (UniqueKey, CohortName, CoachName, SessionNumber,
                      AssessmentType, SessionDate,
                      Age, Height, Systolic, Diastolic,
-                     Weight, BodyFatPercent, WaistCircumference)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                     Weight, BodyFatPercent, WaistCircumference,
+                     Location, Notes)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """, (
                     client["UniqueKey"],
                     cohort,
@@ -147,7 +152,9 @@ Waist: {last['WaistCircumference']} in
                     diastolic,
                     weight,
                     bodyfat,
-                    waist
+                    waist,
+                    location,
+                    notes
                 ))
 
                 conn.commit()
