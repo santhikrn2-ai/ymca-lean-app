@@ -115,14 +115,22 @@ Waist: {last['WaistCircumference']} in
 
         st.subheader("Enter Measurements")
 
-        height = st.text_input("Height (ft/in or inches)")
+        # ✅ SPLIT HEIGHT
+        col1, col2 = st.columns(2)
+        with col1:
+            height_ft = st.number_input("Height (ft)", min_value=0, step=1)
+        with col2:
+            height_in = st.number_input("Height (inches)", min_value=0, step=1)
+
+        # Combine height (optional: store as total inches)
+        height = height_ft * 12 + height_in
+
         systolic = st.number_input("Systolic BP", step=1)
         diastolic = st.number_input("Diastolic BP", step=1)
         weight = st.number_input("Weight (lbs)")
         bodyfat = st.number_input("Body Fat (%)")
         waist = st.number_input("Waist (inches)")
 
-        # ✅ NEW OPTIONAL FIELD
         notes = st.text_input("Notes (optional)")
 
         # ------------------------------
